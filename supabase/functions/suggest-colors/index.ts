@@ -5,27 +5,79 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Validation helpers
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB base64 limit
+const BASE64_IMAGE_PATTERN = /^data:image\/(png|jpeg|jpg|webp|gif);base64,/;
+const VALID_STYLES = ['modern', 'scandinavian', 'classic', 'cozy', 'bold', 'natural'];
+
+function validateImageBase64(imageBase64: unknown): { valid: boolean; error?: string } {
+  if (!imageBase64 || typeof imageBase64 !== 'string') {
+    return { valid: false, error: 'Изображение не предоставлено' };
+  }
+  
+  if (imageBase64.length > MAX_IMAGE_SIZE) {
+    return { valid: false, error: 'Изображение слишком большое (макс. 5MB)' };
+  }
+  
+  if (!BASE64_IMAGE_PATTERN.test(imageBase64)) {
+    return { valid: false, error: 'Неверный формат изображения. Поддерживаются: PNG, JPEG, WebP' };
+  }
+  
+  return { valid: true };
+}
+
+function validateStyle(style: unknown): { valid: boolean; value: string } {
+  if (!style || typeof style !== 'string' || !VALID_STYLES.includes(style)) {
+    return { valid: true, value: 'modern' }; // Default to 'modern' if invalid
+  }
+  return { valid: true, value: style };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { imageBase64, style } = await req.json();
-    
-    if (!imageBase64) {
+    // Parse and validate request body
+    let body: Record<string, unknown>;
+    try {
+      body = await req.json();
+    } catch {
       return new Response(
-        JSON.stringify({ error: 'No image provided' }),
+        JSON.stringify({ error: 'Неверный формат запроса' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const { imageBase64, style: rawStyle } = body;
+    
+    // Validate image
+    const imageValidation = validateImageBase64(imageBase64);
+    if (!imageValidation.valid) {
+      return new Response(
+        JSON.stringify({ error: imageValidation.error }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log('Analyzing room for color suggestions, style:', style);
+    // Validate and sanitize style
+    const styleValidation = validateStyle(rawStyle);
+    const style = styleValidation.value;
+
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY is not configured');
+      return new Response(
+        JSON.stringify({ error: 'Сервис временно недоступен' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log('Analyzing room for color suggestions:', { 
+      style, 
+      imageSize: (imageBase64 as string).length 
+    });
 
     const stylePrompts: Record<string, string> = {
       modern: "современный минималистичный стиль с нейтральными тонами и акцентами",
@@ -67,88 +119,122 @@ serve(async (req) => {
   ]
 }`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              { type: 'text', text: prompt },
-              { 
-                type: 'image_url', 
-                image_url: { url: imageBase64 } 
-              }
-            ]
-          }
-        ]
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Слишком много запросов. Подождите немного.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Требуется пополнение баланса для AI.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: 'Ошибка AI сервиса' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    
-    console.log('AI response:', content);
-
-    if (!content) {
-      return new Response(
-        JSON.stringify({ error: 'AI не вернул ответ' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Parse JSON from response (handle potential markdown wrapping)
-    let suggestions;
     try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        suggestions = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error('No JSON found in response');
-      }
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError, 'Content:', content);
-      return new Response(
-        JSON.stringify({ error: 'Не удалось обработать ответ AI' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { 
+                  type: 'image_url', 
+                  image_url: { url: imageBase64 } 
+                }
+              ]
+            }
+          ]
+        }),
+        signal: controller.signal
+      });
 
-    return new Response(
-      JSON.stringify(suggestions),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: 'Слишком много запросов. Подождите немного.' }),
+            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: 'Требуется пополнение баланса для AI.' }),
+            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const errorText = await response.text();
+        console.error('AI gateway error:', response.status, errorText);
+        return new Response(
+          JSON.stringify({ error: 'Ошибка AI сервиса' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const data = await response.json();
+      const content = data.choices?.[0]?.message?.content;
+      
+      console.log('AI response received');
+
+      if (!content) {
+        return new Response(
+          JSON.stringify({ error: 'AI не вернул ответ' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Parse JSON from response (handle potential markdown wrapping)
+      let suggestions;
+      try {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          suggestions = JSON.parse(jsonMatch[0]);
+          
+          // Validate the response structure
+          if (!suggestions.analysis || !Array.isArray(suggestions.palettes)) {
+            throw new Error('Invalid response structure');
+          }
+          
+          // Validate each palette has required fields with correct format
+          const hexPattern = /^#[0-9A-Fa-f]{6}$/;
+          for (const palette of suggestions.palettes) {
+            if (!palette.name || !palette.description || !palette.ceiling || !palette.walls || !palette.floor) {
+              throw new Error('Missing palette fields');
+            }
+            if (!hexPattern.test(palette.ceiling) || !hexPattern.test(palette.walls) || !hexPattern.test(palette.floor)) {
+              throw new Error('Invalid color format in palette');
+            }
+          }
+        } else {
+          throw new Error('No JSON found in response');
+        }
+      } catch (parseError) {
+        console.error('JSON parse/validation error:', parseError);
+        return new Response(
+          JSON.stringify({ error: 'Не удалось обработать ответ AI. Попробуйте ещё раз.' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify(suggestions),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        return new Response(
+          JSON.stringify({ error: 'Превышено время ожидания. Попробуйте изображение меньшего размера.' }),
+          { status: 408, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw fetchError;
+    }
 
   } catch (error) {
     console.error('Error:', error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: 'Произошла ошибка при обработке запроса' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
