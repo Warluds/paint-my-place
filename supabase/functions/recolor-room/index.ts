@@ -27,17 +27,28 @@ serve(async (req) => {
 
     console.log('Processing image with colors:', { wallColor, ceilingColor, floorColor });
 
-    const prompt = `You are an interior design assistant. Edit this room photo to change the colors:
-- Change the WALLS to color ${wallColor} (keep texture and shadows)
-- Change the CEILING to color ${ceilingColor} (keep texture and shadows)  
-- Change the FLOOR to color ${floorColor} (keep texture and shadows)
+    const prompt = `You are a professional interior design photo editor. Your task is to repaint ONLY architectural surfaces in this room photo.
 
-Important instructions:
-- Keep all furniture, decorations, windows, doors exactly as they are
-- Only change the wall, ceiling, and floor colors
-- Preserve the lighting, shadows, and perspective
-- Make the color change look natural and realistic
-- Maintain the original room structure and proportions`;
+REPAINT THESE SURFACES with solid colors:
+1. WALLS: Repaint to solid color ${wallColor}. This includes ALL wall surfaces - painted walls, wallpaper, tiles on walls. Replace any pattern/texture with solid flat color.
+2. CEILING: Repaint to solid color ${ceilingColor}. The entire ceiling surface.
+3. FLOOR: Repaint to solid color ${floorColor}. This includes ALL floor covering - laminate, parquet, tiles, carpet, wood flooring. Replace the entire floor surface with solid color.
+
+CRITICAL - DO NOT TOUCH:
+- Any furniture (sofas, chairs, tables, beds, wardrobes, cabinets, shelves, desks)
+- Doors and door frames
+- Windows and window frames
+- Curtains and blinds
+- Decorations, paintings, mirrors
+- Appliances
+- Plants
+- Any objects in the room
+
+The repainting should:
+- Cover the ENTIRE surface area of walls, ceiling, and floor
+- Use SOLID FLAT colors (no patterns, no textures)
+- Preserve natural shadows and lighting gradients for realism
+- Keep the perspective and geometry unchanged`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -46,7 +57,7 @@ Important instructions:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-image',
+        model: 'google/gemini-3-pro-image-preview',
         messages: [
           {
             role: 'user',
