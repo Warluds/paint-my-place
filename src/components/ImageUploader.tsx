@@ -1,14 +1,24 @@
 import { useState, useRef } from "react";
-import { Upload, Image as ImageIcon, X } from "lucide-react";
+import { Upload, Image as ImageIcon, X, Loader2, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface ImageUploaderProps {
   image: string | null;
+  processedImage: string | null;
+  isProcessing: boolean;
   onImageChange: (image: string | null) => void;
+  onApplyColors: () => void;
 }
 
-export const ImageUploader = ({ image, onImageChange }: ImageUploaderProps) => {
+export const ImageUploader = ({ 
+  image, 
+  processedImage,
+  isProcessing,
+  onImageChange, 
+  onApplyColors 
+}: ImageUploaderProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDrop = (e: React.DragEvent) => {
@@ -43,21 +53,77 @@ export const ImageUploader = ({ image, onImageChange }: ImageUploaderProps) => {
     }
   };
 
+  const displayImage = showOriginal ? image : (processedImage || image);
+
   if (image) {
     return (
-      <div className="image-preview-container">
-        <img 
-          src={image} 
-          alt="Загруженное фото" 
-          className="uploaded-image"
-        />
-        <Button
-          variant="destructive"
-          size="icon"
-          className="absolute top-4 right-4 rounded-full shadow-lg"
-          onClick={handleClear}
+      <div className="space-y-4">
+        <div className="image-preview-container">
+          {isProcessing && (
+            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded-2xl">
+              <div className="text-center">
+                <Loader2 className="w-12 h-12 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-lg font-medium">AI обрабатывает изображение...</p>
+                <p className="text-sm text-muted-foreground">Это может занять до 30 секунд</p>
+              </div>
+            </div>
+          )}
+          <img 
+            src={displayImage!} 
+            alt="Фото комнаты" 
+            className="uploaded-image"
+          />
+          <div className="absolute top-4 right-4 flex gap-2">
+            <Button
+              variant="destructive"
+              size="icon"
+              className="rounded-full shadow-lg"
+              onClick={handleClear}
+              disabled={isProcessing}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          {processedImage && (
+            <div className="absolute bottom-4 left-4 flex gap-2">
+              <Button
+                variant={showOriginal ? "secondary" : "default"}
+                size="sm"
+                onClick={() => setShowOriginal(false)}
+                className="rounded-full shadow-lg"
+              >
+                Результат
+              </Button>
+              <Button
+                variant={showOriginal ? "default" : "secondary"}
+                size="sm"
+                onClick={() => setShowOriginal(true)}
+                className="rounded-full shadow-lg"
+              >
+                Оригинал
+              </Button>
+            </div>
+          )}
+        </div>
+        
+        <Button 
+          onClick={onApplyColors}
+          disabled={isProcessing}
+          className="w-full h-14 text-lg font-semibold"
+          size="lg"
         >
-          <X className="w-4 h-4" />
+          {isProcessing ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Обработка...
+            </>
+          ) : (
+            <>
+              <Wand2 className="w-5 h-5 mr-2" />
+              Применить цвета на фото
+            </>
+          )}
         </Button>
       </div>
     );

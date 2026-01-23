@@ -1,0 +1,4 @@
+project_id = "icczrurozqotpvjpirqk"
+
+[functions.recolor-room]
+verify_jwt = false
