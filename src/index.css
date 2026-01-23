@@ -264,6 +264,30 @@
     box-shadow: var(--shadow-strong);
   }
 
+  /* AI Designer Panel */
+  .ai-designer-panel {
+    @apply p-5 rounded-xl bg-gradient-to-br from-accent-warm/5 to-accent/10 border border-accent-warm/20;
+  }
+
+  /* AI Suggestions Panel */
+  .ai-suggestions-panel {
+    @apply p-5 rounded-xl bg-card border border-border;
+    box-shadow: var(--shadow-medium);
+  }
+
+  /* Palette Card */
+  .palette-card {
+    @apply p-4 rounded-xl bg-secondary/50 border border-border transition-all duration-200;
+  }
+
+  .palette-card:hover {
+    @apply bg-secondary border-primary/30;
+  }
+
+  .palette-card-selected {
+    @apply bg-accent-warm/10 border-accent-warm/40;
+  }
+
   /* Animations */
   @keyframes pulse-slow {
     0%, 100% {
