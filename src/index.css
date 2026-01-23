@@ -253,6 +253,17 @@
     @apply w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0;
   }
 
+  /* Product Cards */
+  .product-card {
+    @apply relative p-4 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300;
+    box-shadow: var(--shadow-soft);
+  }
+
+  .product-card:hover {
+    box-shadow: var(--shadow-medium);
+    transform: translateY(-4px);
+  }
+
   /* Brand Cards */
   .brand-card {
     @apply flex flex-col items-center p-4 rounded-xl hover:bg-secondary/50 transition-colors cursor-pointer;
