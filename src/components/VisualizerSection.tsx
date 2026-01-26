@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Paintbrush, Square, CircleDot, Layers, Sparkles, Loader2, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -6,6 +6,7 @@ import { ImageUploader } from "@/components/ImageUploader";
 import { ColorPicker } from "@/components/ColorPicker";
 import { ColorPreview } from "@/components/ColorPreview";
 import { AISuggestions } from "@/components/AISuggestions";
+import { PaintCalculator, CalculationResult } from "@/components/visualizer/PaintCalculator";
 import { useRecolorRoom } from "@/hooks/useRecolorRoom";
 import { useSuggestColors, ColorPalette } from "@/hooks/useSuggestColors";
 
@@ -25,9 +26,14 @@ export const VisualizerSection = () => {
   const [floorColor, setFloorColor] = useState("#8B7355");
   const [selectedStyle, setSelectedStyle] = useState("modern");
   const [selectedPalette, setSelectedPalette] = useState<ColorPalette | null>(null);
+  const [paintCalculation, setPaintCalculation] = useState<CalculationResult | null>(null);
   
   const { recolorRoom, isProcessing, processedImage, resetProcessedImage } = useRecolorRoom();
   const { suggestColors, isAnalyzing, suggestions, clearSuggestions } = useSuggestColors();
+
+  const handleCalculationChange = useCallback((calc: CalculationResult | null) => {
+    setPaintCalculation(calc);
+  }, []);
 
   const handleImageChange = (newImage: string | null) => {
     setImage(newImage);
@@ -160,6 +166,9 @@ export const VisualizerSection = () => {
 
             {/* Right Panel - Controls */}
             <div className="space-y-6">
+              {/* Paint Calculator */}
+              <PaintCalculator onCalculationChange={handleCalculationChange} />
+              
               <ColorPreview 
                 wallColor={wallColor}
                 ceilingColor={ceilingColor}
