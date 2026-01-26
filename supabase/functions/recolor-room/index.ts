@@ -38,6 +38,18 @@ function validateHexColor(color: unknown, name: string): { valid: boolean; error
   return { valid: true };
 }
 
+// Extract base64 data without the data URI prefix
+function extractBase64Data(dataUri: string): string {
+  const match = dataUri.match(/^data:image\/[^;]+;base64,(.+)$/);
+  return match ? match[1] : dataUri;
+}
+
+// Get MIME type from data URI
+function getMimeType(dataUri: string): string {
+  const match = dataUri.match(/^data:(image\/[^;]+);base64,/);
+  return match ? match[1] : 'image/jpeg';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -82,11 +94,11 @@ serve(async (req) => {
       }
     }
 
-    const API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!API_KEY) {
-      console.error('API_KEY is not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      console.error('GEMINI_API_KEY is not configured');
       return new Response(
-        JSON.stringify({ error: 'Сервис временно недоступен' }),
+        JSON.stringify({ error: 'Сервис временно недоступен. Не настроен API ключ.' }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -119,54 +131,63 @@ The repainting should:
 - Cover the ENTIRE surface area of walls, ceiling, and floor
 - Use SOLID FLAT colors (no patterns, no textures)
 - Preserve natural shadows and lighting gradients for realism
-- Keep the perspective and geometry unchanged`;
+- Keep the perspective and geometry unchanged
+
+Generate the edited image.`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout for image generation
 
     try {
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-3-pro-image-preview',
-          messages: [
-            {
-              role: 'user',
-              content: [
-                { type: 'text', text: prompt },
-                { 
-                  type: 'image_url', 
-                  image_url: { url: imageBase64 } 
-                }
-              ]
+      // Google Gemini API direct call
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: prompt },
+                  {
+                    inlineData: {
+                      mimeType: getMimeType(imageBase64 as string),
+                      data: extractBase64Data(imageBase64 as string)
+                    }
+                  }
+                ]
+              }
+            ],
+            generationConfig: {
+              responseModalities: ["TEXT", "IMAGE"]
             }
-          ],
-          modalities: ['image', 'text']
-        }),
-        signal: controller.signal
-      });
+          }),
+          signal: controller.signal
+        }
+      );
 
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Gemini API error:', response.status, errorText);
+        
         if (response.status === 429) {
           return new Response(
             JSON.stringify({ error: 'Слишком много запросов. Подождите немного и попробуйте снова.' }),
             { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        if (response.status === 402) {
+        if (response.status === 403) {
           return new Response(
-            JSON.stringify({ error: 'Требуется пополнение баланса для использования AI.' }),
-            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ error: 'Ошибка доступа к API. Проверьте ключ Gemini API.' }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
-        const errorText = await response.text();
-        console.error('AI gateway error:', response.status, errorText);
+        
         return new Response(
           JSON.stringify({ error: 'Ошибка при обработке изображения' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -174,13 +195,25 @@ The repainting should:
       }
 
       const data = await response.json();
-      console.log('AI response received');
+      console.log('Gemini response received');
       
-      const generatedImage = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-      const textResponse = data.choices?.[0]?.message?.content;
+      // Extract image from Gemini response
+      let generatedImage: string | null = null;
+      let textResponse: string | null = null;
+      
+      const parts = data.candidates?.[0]?.content?.parts || [];
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          const mimeType = part.inlineData.mimeType || 'image/png';
+          generatedImage = `data:${mimeType};base64,${part.inlineData.data}`;
+        }
+        if (part.text) {
+          textResponse = part.text;
+        }
+      }
 
       if (!generatedImage) {
-        console.error('No image in response');
+        console.error('No image in Gemini response:', JSON.stringify(data));
         return new Response(
           JSON.stringify({ error: 'AI не смог обработать изображение. Попробуйте другое фото.', text: textResponse }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
