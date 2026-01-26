@@ -166,9 +166,6 @@ export const VisualizerSection = () => {
 
             {/* Right Panel - Controls */}
             <div className="space-y-6">
-              {/* Paint Calculator */}
-              <PaintCalculator onCalculationChange={handleCalculationChange} />
-              
               <ColorPreview 
                 wallColor={wallColor}
                 ceilingColor={ceilingColor}
@@ -204,6 +201,9 @@ export const VisualizerSection = () => {
                   💡 Все цвета из официальной палитры колеровки centr-krasok.kz
                 </p>
               </div>
+              
+              {/* Paint Calculator - moved to bottom */}
+              <PaintCalculator onCalculationChange={handleCalculationChange} />
             </div>
           </div>
         </div>
