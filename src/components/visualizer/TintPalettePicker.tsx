@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useTints, usePalettes, Tint } from "@/hooks/useTints";
+import { useTints, usePalettes, Tint, PaletteInfo } from "@/hooks/useTints";
 
 interface TintPalettePickerProps {
   label: string;
@@ -80,7 +80,7 @@ export const TintPalettePicker = ({ label, icon, color, onChange }: TintPaletteP
                 <SelectContent>
                   <SelectItem value="all">Все палитры</SelectItem>
                   {palettes.map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
+                    <SelectItem key={p.palette} value={p.palette}>{p.palette}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

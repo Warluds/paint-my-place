@@ -66,15 +66,15 @@ const AdminTints = () => {
               <p className="text-muted-foreground">Нет загруженных палитр</p>
             ) : (
               <div className="space-y-4">
-                {palettes.map((palette) => {
-                  const paletteColors = allTints.filter(t => t.palette === palette);
+                {palettes.map((paletteInfo) => {
+                  const paletteColors = allTints.filter(t => t.palette === paletteInfo.palette);
                   return (
-                    <div key={palette} className="border rounded-lg p-4">
+                    <div key={paletteInfo.palette} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
                         <div>
-                          <h3 className="font-medium">{palette}</h3>
+                          <h3 className="font-medium">{paletteInfo.palette}</h3>
                           <span className="text-sm text-muted-foreground">
-                            {paletteColors.length} цветов
+                            {paletteInfo.color_count} цветов
                           </span>
                         </div>
                         <AlertDialog>
@@ -96,14 +96,14 @@ const AdminTints = () => {
                             <AlertDialogHeader>
                               <AlertDialogTitle>Удалить палитру?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Вы уверены, что хотите удалить палитру "{palette}"? 
-                                Это действие удалит все {paletteColors.length} цветов и не может быть отменено.
+                                Вы уверены, что хотите удалить палитру "{paletteInfo.palette}"? 
+                                Это действие удалит все {paletteInfo.color_count} цветов и не может быть отменено.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Отмена</AlertDialogCancel>
                               <AlertDialogAction
-                                onClick={() => handleDeletePalette(palette)}
+                                onClick={() => handleDeletePalette(paletteInfo.palette)}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
                                 Удалить
