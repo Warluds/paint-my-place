@@ -1,11 +1,46 @@
 import { TintImporter } from "@/components/admin/TintImporter";
-import { useTints, usePalettes } from "@/hooks/useTints";
+import { useTints, usePalettes, useDeletePalette } from "@/hooks/useTints";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Trash2, Loader2 } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const AdminTints = () => {
-  const { data: palettes = [] } = usePalettes();
-  const { data: allTints = [] } = useTints();
+  const { data: palettes = [], isLoading: palettesLoading } = usePalettes();
+  const { data: allTints = [], isLoading: tintsLoading } = useTints();
+  const deletePalette = useDeletePalette();
+
+  const handleDeletePalette = (paletteName: string) => {
+    deletePalette.mutate(paletteName, {
+      onSuccess: () => {
+        toast({
+          title: "Палитра удалена",
+          description: `Палитра "${paletteName}" успешно удалена`,
+        });
+      },
+      onError: (error) => {
+        toast({
+          title: "Ошибка удаления",
+          description: error instanceof Error ? error.message : "Не удалось удалить палитру",
+          variant: "destructive",
+        });
+      },
+    });
+  };
+
+  const isLoading = palettesLoading || tintsLoading;
 
   return (
     <div className="min-h-screen bg-background p-8">
@@ -21,10 +56,13 @@ const AdminTints = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Загруженные палитры</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+              <span>Загруженные палитры</span>
+              {isLoading && <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            {palettes.length === 0 ? (
+            {palettes.length === 0 && !isLoading ? (
               <p className="text-muted-foreground">Нет загруженных палитр</p>
             ) : (
               <div className="space-y-4">
@@ -33,10 +71,46 @@ const AdminTints = () => {
                   return (
                     <div key={palette} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-medium">{palette}</h3>
-                        <span className="text-sm text-muted-foreground">
-                          {paletteColors.length} цветов
-                        </span>
+                        <div>
+                          <h3 className="font-medium">{palette}</h3>
+                          <span className="text-sm text-muted-foreground">
+                            {paletteColors.length} цветов
+                          </span>
+                        </div>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={deletePalette.isPending}
+                            >
+                              {deletePalette.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Удалить палитру?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Вы уверены, что хотите удалить палитру "{palette}"? 
+                                Это действие удалит все {paletteColors.length} цветов и не может быть отменено.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Отмена</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleDeletePalette(palette)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Удалить
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                       <ScrollArea className="h-20">
                         <div className="flex flex-wrap gap-1">
