@@ -9,6 +9,11 @@ export interface Tint {
   palette: string;
 }
 
+export interface PaletteInfo {
+  palette: string;
+  color_count: number;
+}
+
 export const useTints = (palette?: string) => {
   return useQuery({
     queryKey: ['tints', palette],
@@ -34,15 +39,11 @@ export const usePalettes = () => {
   return useQuery({
     queryKey: ['palettes'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tints')
-        .select('palette');
+      // Use RPC function for efficient unique palette retrieval
+      const { data, error } = await supabase.rpc('get_unique_palettes');
       
       if (error) throw error;
-      
-      // Get unique palettes
-      const uniquePalettes = [...new Set(data?.map(t => t.palette) || [])];
-      return uniquePalettes.sort();
+      return (data as PaletteInfo[]) || [];
     },
   });
 };
