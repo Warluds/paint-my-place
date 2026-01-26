@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
-import { Paintbrush, Square, CircleDot, Layers, Sparkles, Loader2, Lightbulb } from "lucide-react";
+import { Square, CircleDot, Layers, Sparkles, Loader2, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ImageUploader } from "@/components/ImageUploader";
-import { ColorPicker } from "@/components/ColorPicker";
+import { TintPalettePicker } from "@/components/visualizer/TintPalettePicker";
 import { ColorPreview } from "@/components/ColorPreview";
 import { AISuggestions } from "@/components/AISuggestions";
 import { PaintCalculator, CalculationResult } from "@/components/visualizer/PaintCalculator";
@@ -176,21 +176,21 @@ export const VisualizerSection = () => {
               />
               
               <div className="space-y-4">
-                <ColorPicker
+                <TintPalettePicker
                   label="Потолок"
                   icon={<CircleDot className="w-5 h-5" />}
                   color={ceilingColor}
                   onChange={(c) => { setCeilingColor(c); setSelectedPalette(null); }}
                 />
                 
-                <ColorPicker
+                <TintPalettePicker
                   label="Стены"
                   icon={<Square className="w-5 h-5" />}
                   color={wallColor}
                   onChange={(c) => { setWallColor(c); setSelectedPalette(null); }}
                 />
                 
-                <ColorPicker
+                <TintPalettePicker
                   label="Пол"
                   icon={<Layers className="w-5 h-5" />}
                   color={floorColor}
@@ -198,26 +198,11 @@ export const VisualizerSection = () => {
                 />
               </div>
 
-              {/* Popular Colors */}
-              <div className="p-5 rounded-xl bg-card border border-border">
-                <h4 className="text-sm font-medium text-muted-foreground mb-3 uppercase tracking-wider">
-                  Популярные цвета
-                </h4>
-                <div className="grid grid-cols-6 gap-2">
-                  {[
-                    "#FFFFFF", "#F5F5F0", "#E8E4E0", "#D4C4B0",
-                    "#C9B99A", "#A89880", "#8B8178", "#6B635B",
-                    "#E8D8C8", "#D4B896", "#B89B7A", "#967B5D",
-                  ].map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => { setWallColor(color); setSelectedPalette(null); }}
-                      className="w-full aspect-square rounded-lg border-2 border-border hover:border-primary hover:scale-105 transition-all"
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-                </div>
+              {/* Info about palette */}
+              <div className="p-4 rounded-xl bg-accent/30 border border-border">
+                <p className="text-sm text-muted-foreground">
+                  💡 Все цвета из официальной палитры колеровки centr-krasok.kz
+                </p>
               </div>
             </div>
           </div>

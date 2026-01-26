@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.sync-1c]
 verify_jwt = false
+
+[functions.import-tints]
+verify_jwt = false

@@ -184,6 +184,33 @@ export type Database = {
           },
         ]
       }
+      tints: {
+        Row: {
+          created_at: string
+          hex_color: string
+          id: string
+          name: string
+          palette: string
+          series: string | null
+        }
+        Insert: {
+          created_at?: string
+          hex_color: string
+          id?: string
+          name: string
+          palette: string
+          series?: string | null
+        }
+        Update: {
+          created_at?: string
+          hex_color?: string
+          id?: string
+          name?: string
+          palette?: string
+          series?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
