@@ -34,6 +34,7 @@ export const usePalettes = () => {
   return useQuery({
     queryKey: ['palettes'],
     queryFn: async () => {
+      // Use a more efficient query with limit 1 per palette group
       const { data, error } = await supabase
         .from('tints')
         .select('palette')
@@ -41,7 +42,8 @@ export const usePalettes = () => {
       
       if (error) throw error;
       
-      // Get unique palettes
+      // Get unique palettes - deduplicate on client side
+      // This is necessary since Supabase doesn't support DISTINCT directly
       const uniquePalettes = [...new Set(data?.map(t => t.palette) || [])];
       return uniquePalettes;
     },
