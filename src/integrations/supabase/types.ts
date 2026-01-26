@@ -216,7 +216,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_unique_palettes: {
+        Args: never
+        Returns: {
+          color_count: number
+          palette: string
+        }[]
+      }
     }
     Enums: {
       product_status: "active" | "inactive" | "out_of_stock"
