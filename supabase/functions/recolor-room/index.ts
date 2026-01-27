@@ -139,7 +139,7 @@ Generate the edited image.`;
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout for image generation
 
     try {
-      // Direct Gemini API call with user's personal API key
+      // Direct Gemini API call with gemini-2.0-flash-exp for image generation
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
         {
@@ -162,7 +162,7 @@ Generate the edited image.`;
               }
             ],
             generationConfig: {
-              responseModalities: ["TEXT", "IMAGE"]
+              responseModalities: ["IMAGE", "TEXT"]
             }
           }),
           signal: controller.signal
