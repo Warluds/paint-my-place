@@ -94,9 +94,9 @@ serve(async (req) => {
       }
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      console.error('GEMINI_API_KEY is not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY is not configured');
       return new Response(
         JSON.stringify({ error: 'Сервис временно недоступен. Не настроен API ключ.' }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -139,31 +139,32 @@ Generate the edited image.`;
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout for image generation
 
     try {
-      // Google Gemini API direct call
+      // Lovable AI Gateway call (works globally, no regional restrictions)
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+        'https://ai.gateway.lovable.dev/v1/chat/completions',
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           },
           body: JSON.stringify({
-            contents: [
+            model: 'google/gemini-2.5-flash-image',
+            messages: [
               {
-                parts: [
-                  { text: prompt },
+                role: 'user',
+                content: [
+                  { type: 'text', text: prompt },
                   {
-                    inlineData: {
-                      mimeType: getMimeType(imageBase64 as string),
-                      data: extractBase64Data(imageBase64 as string)
+                    type: 'image_url',
+                    image_url: {
+                      url: imageBase64 as string
                     }
                   }
                 ]
               }
             ],
-            generationConfig: {
-              responseModalities: ["TEXT", "IMAGE"]
-            }
+            modalities: ['image', 'text']
           }),
           signal: controller.signal
         }
@@ -173,7 +174,7 @@ Generate the edited image.`;
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Gemini API error:', response.status, errorText);
+        console.error('AI Gateway error:', response.status, errorText);
         
         if (response.status === 429) {
           return new Response(
@@ -183,7 +184,7 @@ Generate the edited image.`;
         }
         if (response.status === 403) {
           return new Response(
-            JSON.stringify({ error: 'Ошибка доступа к API. Проверьте ключ Gemini API.' }),
+            JSON.stringify({ error: 'Ошибка доступа к API.' }),
             { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -195,25 +196,23 @@ Generate the edited image.`;
       }
 
       const data = await response.json();
-      console.log('Gemini response received');
+      console.log('AI Gateway response received');
       
-      // Extract image from Gemini response
+      // Extract image from Lovable AI Gateway response
       let generatedImage: string | null = null;
       let textResponse: string | null = null;
       
-      const parts = data.candidates?.[0]?.content?.parts || [];
-      for (const part of parts) {
-        if (part.inlineData?.data) {
-          const mimeType = part.inlineData.mimeType || 'image/png';
-          generatedImage = `data:${mimeType};base64,${part.inlineData.data}`;
-        }
-        if (part.text) {
-          textResponse = part.text;
+      const message = data.choices?.[0]?.message;
+      if (message) {
+        textResponse = message.content;
+        const images = message.images;
+        if (images && images.length > 0) {
+          generatedImage = images[0].image_url?.url;
         }
       }
 
       if (!generatedImage) {
-        console.error('No image in Gemini response:', JSON.stringify(data));
+        console.error('No image in AI response:', JSON.stringify(data));
         return new Response(
           JSON.stringify({ error: 'AI не смог обработать изображение. Попробуйте другое фото.', text: textResponse }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
