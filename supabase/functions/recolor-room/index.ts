@@ -141,10 +141,10 @@ OUTPUT
 Return only the final edited image.`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout for image generation
+    const timeoutId = setTimeout(() => controller.abort(), 180000); // 180 second timeout for pro model
 
     try {
-      // Use Lovable AI Gateway with Nano Banana model for image generation
+      // Use Lovable AI Gateway with gemini-3-pro-image-preview for better accuracy
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -152,13 +152,13 @@ Return only the final edited image.`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-image',
-          temperature: 0.2,
+          model: 'google/gemini-3-pro-image-preview',
+          temperature: 0.3,
           messages: [
             {
               role: 'system',
               content:
-                'You edit photos. Follow the user instructions exactly. Edit ONLY architectural surfaces; never recolor furniture/objects. Always recolor walls, ceiling, and floor as requested.',
+                'You are a professional photo editor. You MUST repaint walls, ceiling, and floor to the exact colors the user specifies. Preserve all furniture and objects unchanged.',
             },
             {
               role: 'user',
