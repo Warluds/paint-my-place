@@ -110,30 +110,35 @@ serve(async (req) => {
       imageSize: (imageBase64 as string).length 
     });
 
-    const prompt = `You are a professional interior design photo editor. Your task is to repaint ONLY architectural surfaces in this room photo.
+    const prompt = `You are a professional interior design photo editor.
 
-REPAINT THESE SURFACES with solid colors:
-1. WALLS: Repaint to solid color ${wallColor}. This includes ALL wall surfaces - painted walls, wallpaper, tiles on walls. Replace any pattern/texture with solid flat color.
-2. CEILING: Repaint to solid color ${ceilingColor}. The entire ceiling surface.
-3. FLOOR: Repaint to solid color ${floorColor}. This includes ALL floor covering - laminate, parquet, tiles, carpet, wood flooring. Replace the entire floor surface with solid color.
+TASK
+Repaint ALL architectural surfaces in the room photo with SOLID colors while preserving natural lighting/shadows.
 
-CRITICAL - DO NOT TOUCH:
-- Any furniture (sofas, chairs, tables, beds, wardrobes, cabinets, shelves, desks)
+YOU MUST REPAINT (do not skip):
+1) WALLS: repaint EVERY visible wall surface to ${wallColor}.
+   - Includes painted walls, wallpaper, wall tiles.
+   - Remove patterns/prints: replace with a flat solid color.
+2) CEILING: repaint the entire ceiling to ${ceilingColor}.
+3) FLOOR: repaint the entire floor covering to ${floorColor}.
+   - Includes laminate/parquet/tiles/carpet/wood.
+   - Remove patterns/wood grain: replace with a flat solid color.
+
+CRITICAL — DO NOT EDIT these objects (keep original colors/materials):
+- Furniture (sofas, chairs, tables, beds, cabinets, wardrobes, shelves, desks)
 - Doors and door frames
 - Windows and window frames
 - Curtains and blinds
 - Decorations, paintings, mirrors
-- Appliances
-- Plants
-- Any objects in the room
+- Appliances, plants, all small objects
 
-The repainting should:
-- Cover the ENTIRE surface area of walls, ceiling, and floor
-- Use SOLID FLAT colors (no patterns, no textures)
-- Preserve natural shadows and lighting gradients for realism
-- Keep the perspective and geometry unchanged
+IMPORTANT SEGMENTATION RULES
+- Prioritize repainting WALLS and FLOOR even if edges touch furniture.
+- If unsure about a boundary: repaint the architectural surface and keep objects intact as best as possible.
+- The result must clearly show WALLS, CEILING, and FLOOR recolored. Do not leave any of these surfaces in original color.
 
-Generate the edited image.`;
+OUTPUT
+Return only the final edited image.`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 120 second timeout for image generation
@@ -148,7 +153,13 @@ Generate the edited image.`;
         },
         body: JSON.stringify({
           model: 'google/gemini-2.5-flash-image',
+          temperature: 0.2,
           messages: [
+            {
+              role: 'system',
+              content:
+                'You edit photos. Follow the user instructions exactly. Edit ONLY architectural surfaces; never recolor furniture/objects. Always recolor walls, ceiling, and floor as requested.',
+            },
             {
               role: 'user',
               content: [
