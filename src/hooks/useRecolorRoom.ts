@@ -13,9 +13,11 @@ export const useRecolorRoom = () => {
 
   const recolorRoom = async (
     imageBase64: string,
-    wallColor: string,
-    ceilingColor: string,
-    floorColor: string
+    wallColor: string | null,
+    ceilingColor: string | null,
+    floorColor: string | null,
+    ceilingMoldingColor?: string | null,
+    floorMoldingColor?: string | null
   ) => {
     setIsProcessing(true);
     
@@ -25,7 +27,9 @@ export const useRecolorRoom = () => {
           imageBase64,
           wallColor,
           ceilingColor,
-          floorColor
+          floorColor,
+          ceilingMoldingColor,
+          floorMoldingColor
         }
       });
 

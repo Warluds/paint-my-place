@@ -26,28 +26,9 @@ function validateImageBase64(imageBase64: unknown): { valid: boolean; error?: st
   return { valid: true };
 }
 
-function validateHexColor(color: unknown, name: string): { valid: boolean; error?: string } {
-  if (!color || typeof color !== 'string') {
-    return { valid: false, error: `Цвет ${name} не указан` };
-  }
-  
-  if (!HEX_COLOR_PATTERN.test(color)) {
-    return { valid: false, error: `Неверный формат цвета ${name}. Используйте HEX формат (#RRGGBB)` };
-  }
-  
-  return { valid: true };
-}
-
-// Extract base64 data without the data URI prefix
-function extractBase64Data(dataUri: string): string {
-  const match = dataUri.match(/^data:image\/[^;]+;base64,(.+)$/);
-  return match ? match[1] : dataUri;
-}
-
-// Get MIME type from data URI
-function getMimeType(dataUri: string): string {
-  const match = dataUri.match(/^data:(image\/[^;]+);base64,/);
-  return match ? match[1] : 'image/jpeg';
+function validateHexColor(color: unknown): boolean {
+  if (!color || typeof color !== 'string') return false;
+  return HEX_COLOR_PATTERN.test(color);
 }
 
 serve(async (req) => {
@@ -67,7 +48,7 @@ serve(async (req) => {
       );
     }
 
-    const { imageBase64, wallColor, ceilingColor, floorColor } = body;
+    const { imageBase64, wallColor, ceilingColor, floorColor, ceilingMoldingColor, floorMoldingColor } = body;
     
     // Validate image
     const imageValidation = validateImageBase64(imageBase64);
@@ -78,20 +59,18 @@ serve(async (req) => {
       );
     }
 
-    // Validate colors
-    const colorValidations = [
-      validateHexColor(wallColor, 'стен'),
-      validateHexColor(ceilingColor, 'потолка'),
-      validateHexColor(floorColor, 'пола'),
-    ];
+    // Check that at least one surface is enabled
+    const hasWall = validateHexColor(wallColor);
+    const hasCeiling = validateHexColor(ceilingColor);
+    const hasFloor = validateHexColor(floorColor);
+    const hasCeilingMolding = validateHexColor(ceilingMoldingColor);
+    const hasFloorMolding = validateHexColor(floorMoldingColor);
 
-    for (const validation of colorValidations) {
-      if (!validation.valid) {
-        return new Response(
-          JSON.stringify({ error: validation.error }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
+    if (!hasWall && !hasCeiling && !hasFloor && !hasCeilingMolding && !hasFloorMolding) {
+      return new Response(
+        JSON.stringify({ error: 'Выберите хотя бы одну поверхность для покраски' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -103,48 +82,78 @@ serve(async (req) => {
       );
     }
 
-    console.log('Processing image with colors:', { 
-      wallColor, 
-      ceilingColor, 
-      floorColor,
+    console.log('Processing image with surfaces:', { 
+      wallColor: hasWall ? wallColor : 'skip', 
+      ceilingColor: hasCeiling ? ceilingColor : 'skip', 
+      floorColor: hasFloor ? floorColor : 'skip',
+      ceilingMoldingColor: hasCeilingMolding ? ceilingMoldingColor : 'skip',
+      floorMoldingColor: hasFloorMolding ? floorMoldingColor : 'skip',
       imageSize: (imageBase64 as string).length 
     });
 
-    const prompt = `You are a professional interior design photo editor.
+    // Build dynamic prompt based on enabled surfaces
+    const surfaceInstructions: string[] = [];
+    const skipInstructions: string[] = [];
 
-TASK
-Repaint ALL architectural surfaces in the room photo with SOLID colors while preserving natural lighting/shadows.
+    if (hasCeiling) {
+      surfaceInstructions.push(`1) CEILING: repaint the entire ceiling surface to SOLID ${ceilingColor}. Remove any texture or patterns.`);
+    } else {
+      skipInstructions.push('ceiling');
+    }
 
-YOU MUST REPAINT (do not skip):
-1) WALLS: repaint EVERY visible wall surface to ${wallColor}.
-   - Includes painted walls, wallpaper, wall tiles.
-   - Remove patterns/prints: replace with a flat solid color.
-2) CEILING: repaint the entire ceiling to ${ceilingColor}.
-3) FLOOR: repaint the entire floor covering to ${floorColor}.
-   - Includes laminate/parquet/tiles/carpet/wood.
-   - Remove patterns/wood grain: replace with a flat solid color.
+    if (hasCeilingMolding) {
+      surfaceInstructions.push(`2) CEILING MOLDINGS/CROWN MOLDINGS: repaint ALL ceiling trim, crown moldings, cornices to SOLID ${ceilingMoldingColor}.`);
+    } else {
+      skipInstructions.push('ceiling moldings/crown moldings');
+    }
 
-CRITICAL — DO NOT EDIT these objects (keep original colors/materials):
+    if (hasWall) {
+      surfaceInstructions.push(`3) WALLS: repaint EVERY visible wall surface to SOLID ${wallColor}. Includes painted walls, wallpaper, wall tiles. Remove patterns/prints entirely.`);
+    } else {
+      skipInstructions.push('walls');
+    }
+
+    if (hasFloorMolding) {
+      surfaceInstructions.push(`4) FLOOR BASEBOARDS/SKIRTING BOARDS: repaint ALL floor baseboards, skirting boards, floor trim to SOLID ${floorMoldingColor}.`);
+    } else {
+      skipInstructions.push('floor baseboards/skirting boards');
+    }
+
+    if (hasFloor) {
+      surfaceInstructions.push(`5) FLOOR: repaint the entire floor covering to SOLID ${floorColor}. Includes laminate, parquet, tiles, carpet, wood. Remove patterns/wood grain entirely.`);
+    } else {
+      skipInstructions.push('floor');
+    }
+
+    const prompt = `You are a professional interior design photo editor specializing in architectural surface repainting.
+
+TASK: Repaint ONLY the specified architectural surfaces with SOLID colors while preserving natural lighting and shadows.
+
+SURFACES TO REPAINT (apply exact HEX colors as flat solid fill):
+${surfaceInstructions.join('\n')}
+
+${skipInstructions.length > 0 ? `DO NOT REPAINT these surfaces (keep original): ${skipInstructions.join(', ')}` : ''}
+
+CRITICAL — PRESERVE THESE OBJECTS UNCHANGED (never repaint):
 - Furniture (sofas, chairs, tables, beds, cabinets, wardrobes, shelves, desks)
 - Doors and door frames
-- Windows and window frames
+- Windows and window frames  
 - Curtains and blinds
 - Decorations, paintings, mirrors
 - Appliances, plants, all small objects
 
-IMPORTANT SEGMENTATION RULES
-- Prioritize repainting WALLS and FLOOR even if edges touch furniture.
-- If unsure about a boundary: repaint the architectural surface and keep objects intact as best as possible.
-- The result must clearly show WALLS, CEILING, and FLOOR recolored. Do not leave any of these surfaces in original color.
+SEGMENTATION RULES:
+- Be aggressive in identifying architectural surfaces vs objects
+- If a surface edge touches furniture, repaint the architectural surface up to the edge
+- The result MUST clearly show the specified surfaces recolored with flat solid colors
+- Remove any texture, pattern, or grain from repainted surfaces
 
-OUTPUT
-Return only the final edited image.`;
+OUTPUT: Return only the final edited image with the specified surfaces recolored.`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 180000); // 180 second timeout for pro model
+    const timeoutId = setTimeout(() => controller.abort(), 180000);
 
     try {
-      // Use Lovable AI Gateway with gemini-3-pro-image-preview for better accuracy
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
@@ -157,8 +166,7 @@ Return only the final edited image.`;
           messages: [
             {
               role: 'system',
-              content:
-                'You are a professional photo editor. You MUST repaint walls, ceiling, and floor to the exact colors the user specifies. Preserve all furniture and objects unchanged.',
+              content: 'You are an expert photo editor. You MUST repaint the specified architectural surfaces to the exact HEX colors provided. Use solid flat colors. Preserve all furniture and objects unchanged. Be thorough - repaint ALL of each specified surface type.',
             },
             {
               role: 'user',
@@ -204,7 +212,6 @@ Return only the final edited image.`;
       const data = await response.json();
       console.log('Lovable AI Gateway response received');
       
-      // Extract image from Lovable AI Gateway response
       let generatedImage: string | null = null;
       let textResponse: string | null = null;
       

@@ -236,15 +236,23 @@
   }
 
   .room-ceiling {
-    @apply h-16 flex items-center justify-center transition-colors duration-300 relative;
+    @apply h-12 flex items-center justify-center transition-colors duration-300 relative rounded-t-lg;
+  }
+
+  .room-ceiling-molding {
+    @apply h-2 w-full transition-colors duration-300;
   }
 
   .room-wall {
-    @apply h-32 flex items-center justify-center transition-colors duration-300 relative;
+    @apply h-28 flex items-center justify-center transition-colors duration-300 relative;
+  }
+
+  .room-floor-molding {
+    @apply h-2 w-full transition-colors duration-300;
   }
 
   .room-floor {
-    @apply h-12 flex items-center justify-center transition-colors duration-300 relative;
+    @apply h-10 flex items-center justify-center transition-colors duration-300 relative rounded-b-lg;
   }
 
   .room-label {
@@ -252,7 +260,7 @@
   }
 
   .room-window {
-    @apply absolute right-4 top-1/2 -translate-y-1/2 w-16 h-20 bg-white/30 rounded-lg border-2 border-white/50 grid grid-cols-2 gap-0.5 p-1;
+    @apply absolute right-4 top-1/2 -translate-y-1/2 w-14 h-16 bg-white/30 rounded-lg border-2 border-white/50 grid grid-cols-2 gap-0.5 p-1;
   }
 
   .window-pane {
