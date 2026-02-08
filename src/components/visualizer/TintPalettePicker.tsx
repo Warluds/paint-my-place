@@ -38,6 +38,99 @@ export const TintPalettePicker = ({ label, icon, color, onChange }: TintPaletteP
     setOpen(false);
   };
 
+  // If no label provided, render compact version
+  if (!label && !icon) {
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button 
+            variant="outline" 
+            className="w-full justify-between h-12 px-3"
+          >
+            <div className="flex items-center gap-2">
+              <div 
+                className="w-6 h-6 rounded-md border-2 border-border shadow-sm"
+                style={{ backgroundColor: color }}
+              />
+              <div className="text-left">
+                <div className="font-mono text-xs">{color}</div>
+                {selectedTint && (
+                  <div className="text-xs text-muted-foreground truncate max-w-[120px]">{selectedTint.name}</div>
+                )}
+              </div>
+            </div>
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          </Button>
+        </PopoverTrigger>
+
+        <PopoverContent className="w-80 p-0" align="start">
+          <div className="p-3 border-b border-border space-y-3">
+            <div className="flex items-center gap-2">
+              <Palette className="w-4 h-4 text-muted-foreground" />
+              <Select value={selectedPalette} onValueChange={setSelectedPalette}>
+                <SelectTrigger className="flex-1 h-9">
+                  <SelectValue placeholder="Все палитры" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Все палитры</SelectItem>
+                  {palettes.map((p) => (
+                    <SelectItem key={p.palette} value={p.palette}>{p.palette}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Поиск по коду или названию..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-9"
+              />
+            </div>
+          </div>
+
+          <ScrollArea className="h-64">
+            {isLoading ? (
+              <div className="p-4 text-center text-muted-foreground text-sm">
+                Загрузка цветов...
+              </div>
+            ) : filteredTints.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground text-sm">
+                {tints.length === 0 ? "Нет загруженных цветов" : "Ничего не найдено"}
+              </div>
+            ) : (
+              <div className="grid grid-cols-6 gap-1 p-2">
+                {filteredTints.map((tint) => (
+                  <button
+                    key={tint.id}
+                    onClick={() => handleSelectColor(tint)}
+                    className={`
+                      aspect-square rounded-md border-2 transition-all hover:scale-110 hover:z-10
+                      ${color.toLowerCase() === tint.hex_color.toLowerCase() 
+                        ? 'border-primary ring-2 ring-primary/30' 
+                        : 'border-border hover:border-primary/50'
+                      }
+                    `}
+                    style={{ backgroundColor: tint.hex_color }}
+                    title={`${tint.name}\n${tint.hex_color}`}
+                  />
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+
+          {tints.length > 100 && !search && (
+            <div className="p-2 border-t border-border text-center text-xs text-muted-foreground">
+              Показано 100 из {tints.length} цветов. Используйте поиск.
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
   return (
     <div className="color-picker-card">
       <div className="flex items-center gap-3 mb-4">

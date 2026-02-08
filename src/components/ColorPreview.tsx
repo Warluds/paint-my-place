@@ -1,10 +1,23 @@
-interface ColorPreviewProps {
-  wallColor: string;
-  ceilingColor: string;
-  floorColor: string;
+interface SurfaceConfig {
+  enabled: boolean;
+  color: string;
 }
 
-export const ColorPreview = ({ wallColor, ceilingColor, floorColor }: ColorPreviewProps) => {
+interface SurfacesState {
+  ceiling: SurfaceConfig;
+  ceilingMolding: SurfaceConfig;
+  walls: SurfaceConfig;
+  floorMolding: SurfaceConfig;
+  floor: SurfaceConfig;
+}
+
+interface ColorPreviewProps {
+  surfaces: SurfacesState;
+}
+
+export const ColorPreview = ({ surfaces }: ColorPreviewProps) => {
+  const enabledSurfaces = Object.entries(surfaces).filter(([_, config]) => config.enabled);
+  
   return (
     <div className="color-preview-panel">
       <h3 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">
@@ -15,17 +28,25 @@ export const ColorPreview = ({ wallColor, ceilingColor, floorColor }: ColorPrevi
         {/* Ceiling */}
         <div 
           className="room-ceiling"
-          style={{ backgroundColor: ceilingColor }}
+          style={{ backgroundColor: surfaces.ceiling.enabled ? surfaces.ceiling.color : '#f5f5f5' }}
         >
-          <span className="room-label">Потолок</span>
+          {surfaces.ceiling.enabled && <span className="room-label">Потолок</span>}
         </div>
+        
+        {/* Ceiling Molding */}
+        {surfaces.ceilingMolding.enabled && (
+          <div 
+            className="room-ceiling-molding"
+            style={{ backgroundColor: surfaces.ceilingMolding.color }}
+          />
+        )}
         
         {/* Wall */}
         <div 
           className="room-wall"
-          style={{ backgroundColor: wallColor }}
+          style={{ backgroundColor: surfaces.walls.enabled ? surfaces.walls.color : '#f5f5f5' }}
         >
-          <span className="room-label">Стены</span>
+          {surfaces.walls.enabled && <span className="room-label">Стены</span>}
           
           {/* Window decoration */}
           <div className="room-window">
@@ -34,28 +55,39 @@ export const ColorPreview = ({ wallColor, ceilingColor, floorColor }: ColorPrevi
           </div>
         </div>
         
+        {/* Floor Molding */}
+        {surfaces.floorMolding.enabled && (
+          <div 
+            className="room-floor-molding"
+            style={{ backgroundColor: surfaces.floorMolding.color }}
+          />
+        )}
+        
         {/* Floor */}
         <div 
           className="room-floor"
-          style={{ backgroundColor: floorColor }}
+          style={{ backgroundColor: surfaces.floor.enabled ? surfaces.floor.color : '#f5f5f5' }}
         >
-          <span className="room-label">Пол</span>
+          {surfaces.floor.enabled && <span className="room-label">Пол</span>}
         </div>
       </div>
       
       <div className="color-swatches-row">
-        <div className="swatch-item">
-          <div className="swatch-circle" style={{ backgroundColor: ceilingColor }} />
-          <span className="swatch-code">{ceilingColor}</span>
-        </div>
-        <div className="swatch-item">
-          <div className="swatch-circle" style={{ backgroundColor: wallColor }} />
-          <span className="swatch-code">{wallColor}</span>
-        </div>
-        <div className="swatch-item">
-          <div className="swatch-circle" style={{ backgroundColor: floorColor }} />
-          <span className="swatch-code">{floorColor}</span>
-        </div>
+        {enabledSurfaces.map(([key, config]) => {
+          const labels: Record<string, string> = {
+            ceiling: 'Потолок',
+            ceilingMolding: 'Пот. плинтус',
+            walls: 'Стены',
+            floorMolding: 'Нап. плинтус',
+            floor: 'Пол',
+          };
+          return (
+            <div key={key} className="swatch-item">
+              <div className="swatch-circle" style={{ backgroundColor: config.color }} />
+              <span className="swatch-code text-xs">{labels[key]}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
